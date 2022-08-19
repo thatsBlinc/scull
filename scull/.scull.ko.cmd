@@ -1,0 +1,1 @@
+cmd_/home/lgj/examples/scull/scull.ko := ld -r  -m elf_x86_64  --build-id=sha1  -T scripts/module.lds -o /home/lgj/examples/scull/scull.ko /home/lgj/examples/scull/scull.o /home/lgj/examples/scull/scull.mod.o;  true

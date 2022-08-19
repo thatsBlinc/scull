@@ -1,0 +1,1 @@
+cmd_/home/lgj/examples/scull/Module.symvers := sed 's/\.ko$$/\.o/' /home/lgj/examples/scull/modules.order | scripts/mod/modpost -m -a  -o /home/lgj/examples/scull/Module.symvers -e -i Module.symvers   -T -

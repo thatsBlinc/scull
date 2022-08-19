@@ -38,7 +38,6 @@ static dev_t scull_a_firstdev;  /* Where our range begins */
  * differ in the implementation of open() and close()
  */
 
-static DEFINE_SPINLOCK(scull_u_lock);
 
 
 /************************************************************************
@@ -96,7 +95,8 @@ struct file_operations scull_sngl_fops = {
 static struct scull_dev scull_u_device;
 static int scull_u_count;	/* initialized to 0 by default */
 static uid_t scull_u_owner;	/* initialized to 0 by default */
-//static spinlock_t scull_u_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(scull_u_lock);
+
 static int scull_u_open(struct inode *inode, struct file *filp)
 {
 	struct scull_dev *dev = &scull_u_device; /* device information */
@@ -171,18 +171,18 @@ static int scull_w_open(struct inode *inode, struct file *filp)
 {
 	struct scull_dev *dev = &scull_w_device; /* device information */
 
-	spin_lock(&scull_w_lock);
+	spin_lock(&scull_u_lock);
 	while (! scull_w_available()) {
-		spin_unlock(&scull_w_lock);
+		spin_unlock(&scull_u_lock);
 		if (filp->f_flags & O_NONBLOCK) return -EAGAIN;
 		if (wait_event_interruptible (scull_w_wait, scull_w_available()))
 			return -ERESTARTSYS; /* tell the fs layer to handle it */
-		spin_lock(&scull_w_lock);
+		spin_lock(&scull_u_lock);
 	}
 	if (scull_w_count == 0)
 		scull_w_owner = current->cred->uid.val; /* grab it */
 	scull_w_count++;
-	spin_unlock(&scull_w_lock);
+	spin_unlock(&scull_u_lock);
 
 	/* then, everything else is copied from the bare scull device */
 	if ((filp->f_flags & O_ACCMODE) == O_WRONLY)
@@ -195,10 +195,10 @@ static int scull_w_release(struct inode *inode, struct file *filp)
 {
 	int temp;
 
-	spin_lock(&scull_w_lock);
+	spin_lock(&scull_u_lock);
 	scull_w_count--;
 	temp = scull_w_count;
-	spin_unlock(&scull_w_lock);
+	spin_unlock(&scull_u_lock);
 
 	if (temp == 0)
 		wake_up_interruptible_sync(&scull_w_wait); /* awake other uid's */
@@ -260,7 +260,7 @@ static struct scull_dev *scull_c_lookfor_device(dev_t key)
 	memset(lptr, 0, sizeof(struct scull_listitem));
 	lptr->key = key;
 	scull_trim(&(lptr->device)); /* initialize it */
-	sema_init(&(lptr->device.sem,),1);
+	sema_init(&(lptr->device.sem),1);
 
 	/* place it in the list */
 	list_add(&lptr->list, &scull_c_list);
@@ -280,9 +280,9 @@ static int scull_c_open(struct inode *inode, struct file *filp)
 	key = tty_devnum(current->signal->tty);
 
 	/* look for a scullc device in the list */
-	spin_lock(&scull_c_lock);
+	spin_lock(&scull_u_lock);
 	dev = scull_c_lookfor_device(key);
-	spin_unlock(&scull_c_lock);
+	spin_unlock(&scull_u_lock);
 
 	if (!dev)
 		return -ENOMEM;
