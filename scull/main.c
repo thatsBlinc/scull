@@ -389,7 +389,7 @@ ssize_t scull_write(struct file *filp, const char __user *buf, size_t count,
  * The ioctl() implementation
  */
 
-int scull_ioctl(struct inode *inode, struct file *filp,
+long scull_ioctl(struct file *filp,
                  unsigned int cmd, unsigned long arg)
 {
 
@@ -410,9 +410,9 @@ int scull_ioctl(struct inode *inode, struct file *filp,
 	 * "write" is reversed
 	 */
 	if (_IOC_DIR(cmd) & _IOC_READ)
-		err = !access_ok(VERIFY_WRITE, (void __user *)arg, _IOC_SIZE(cmd));
+		err = !access_ok((void __user *)arg, _IOC_SIZE(cmd));
 	else if (_IOC_DIR(cmd) & _IOC_WRITE)
-		err =  !access_ok(VERIFY_READ, (void __user *)arg, _IOC_SIZE(cmd));
+		err =  !access_ok( (void __user *)arg, _IOC_SIZE(cmd));
 	if (err) return -EFAULT;
 
 	switch(cmd) {
@@ -552,7 +552,8 @@ struct file_operations scull_fops = {
 	.llseek =   scull_llseek,
 	.read =     scull_read,
 	.write =    scull_write,
-	.ioctl =    scull_ioctl,
+	.unlocked_ioctl =    scull_ioctl,
+	//.ioctl =    scull_ioctl,
 	.open =     scull_open,
 	.release =  scull_release,
 };
